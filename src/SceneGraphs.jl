@@ -253,7 +253,7 @@ function deparent!(tf::Transform, child)
 end
 
 export setscene!
-setscene!(entity, scene::Scene) = (deparent!(entity); addroot!(scene, entity); setscene!(transformof(entity), scene); entity)
+setscene!(entity, scene::Scene) = (deparent!(entity); push!(scene, entity); setscene!(transformof(entity), scene); entity)
 setscene!(entity, ::Nothing) = unsetscene!(entity)
 function setscene!(tf::Transform, scene::Scene)
     tf.dirty = true
@@ -265,7 +265,7 @@ function setscene!(tf::Transform, scene::Scene)
 end
 
 export unsetscene!
-unsetscene!(entity) = (removeroot!(sceneof(entity), entity); unsetscene!(transformof(entity)); entity)
+unsetscene!(entity) = (delete!(sceneof(entity), entity); unsetscene!(transformof(entity)); entity)
 function unsetscene!(tf::Transform)
     tf.dirty = true
     tf.scene = nothing
