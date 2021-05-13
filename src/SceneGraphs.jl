@@ -31,11 +31,19 @@ idmat(T::Type{<:SMatrix}) = T(I)
 
 # ===== (Abstract) Types =====
 
-export Scene, Transform
+export AbstractScene, Scene3D
 """`Scene{E, T}`
  Represents the entire scene. Privided primarily for convenience. It is intended to support cross-dimensional entities
  as well, e.g. 2D entities in a 3D scene. The implementation specifics of the scene are left to the implementer."""
-abstract type Scene{E, T<:Real} end
+abstract type AbstractScene{E, T<:Real} end
+
+struct Scene3D{E, T<:Real} <: AbstractScene{E, T}
+    roots::Set{E}
+end
+Scene3D{E, T}() where {E, T<:Real} = Scene3D{E, T}(Set{E}())
+
+
+export Transform
 """`Transform{D, E, T}`
  Represents the composable transformation matrix of a scene node / entity.
  
@@ -72,20 +80,10 @@ end
 
 # ===== Scene Alteration =====
 
-export hasroot
-"""`hasroot(scene, entity)`
- Tests if the specified scene has the given entity as a scene root."""
-hasroot(scene::Scene{E}, entity::E) where E = entity ∈ scene.roots
-
-export addroot!
-"""`addroot!(scene, entity)`
- Adds the given entity as a scene root."""
-addroot!(scene::Scene{E}, entity::E) where E = push!(scene.roots, entity)
-
-export removeroot!
-"""`removeroot!(scene, entity)`
- Removes the given entity from scene root."""
-removeroot!(scene::Scene{E}, entity::E) where E = delete!(scene.roots, entity)
+Base.:(∈)(entity::E, scene::Scene{E}) where E = entity ∈ scene.roots
+Base.haskey(scene::Scene{E}, entity::E) where E = entity ∈ scene
+Base.push!(scene::Scene{E}, entity::E) where E = (push!(scene.roots, entity); scene)
+Base.delete!(scene::Scene{E}, entity::E) where E = (delete!(scene.roots, entity); scene)
 
 
 # ===== Matrix Component Setters =====
@@ -226,7 +224,7 @@ function parent!(tf_child::Transform, tf_parent::Transform, child, parent)
     end
     
     if parentof(tf_child) !== parent
-        setdirty!(child)
+        flagdirty!(child)
         
         deparent!(tf_child, child)
         push!(tf_parent.children, child)
@@ -300,9 +298,9 @@ function ExtraFun.update!(tf::Transform{3, E, T}, parentmat::Matrix4{T} = idmat(
     return tf
 end
 
-export setdirty!, cleardirty!
-setdirty!(entity) = (setdirty!(transformof(entity)); entity)
-setdirty!(tf::Transform) = (tf.dirty = true; tf)
+export flagdirty!, cleardirty!
+flagdirty!(entity) = (flagdirty!(transformof(entity)); entity)
+flagdirty!(tf::Transform) = (tf.dirty = true; tf)
 cleardirty!(entity) = (cleardirty!(transformof(entity)); entity)
 cleardirty!(tf::Transform) = (tf.dirty = false; tf)
 
@@ -324,6 +322,7 @@ end
 export transformof, transform_family, transform_dimensionality, transform_entity_type, transform_number_type
 transformof(x)::Transform = x.transform
 transformof(x::Transform) = x
+transform_family(T::Type{<:Transform}) = throw(MethodError(transform_family, (T,)))
 transform_family(::Type{<:SpriteTransform}) = SpriteTransform
 transform_dimensionality(::Type{<:Transform{D, E, T}}) where {D, E, T} = D
 transform_entity_type(::Type{<:Transform{D, E, T}}) where {D, E, T} = E
@@ -360,7 +359,7 @@ end
 
 
 # === Base Overrides ===
-Base.copy(tf::SpriteTransform{E, T}) where {E, T} = SpriteTransform{E, T}(nothing, nothing, [], tf.location, tf.rotation, tf.scale, tf.dirty, tf.obj2world, tf.world2obj)
+Base.copy(tf::SpriteTransform{E, T}) where {E, T} = SpriteTransform{E, T}(nothing, nothing, [], tf.location, tf.rotation, tf.scale, true, idmat(Matrix4), idmat(Matrix4))
 
 function Base.show(io::IO, transform::Transform)
     write(io, "$(typeof(transform))(loc: $(transform.location), rot: $(transform.rotation), scale: $(transform.scale)")
