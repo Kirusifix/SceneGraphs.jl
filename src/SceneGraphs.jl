@@ -82,8 +82,21 @@ end
 
 Base.:(∈)(entity::E, scene::Scene{E}) where E = entity ∈ scene.roots
 Base.haskey(scene::Scene{E}, entity::E) where E = entity ∈ scene
-Base.push!(scene::Scene{E}, entity::E) where E = (push!(scene.roots, entity); scene)
-Base.delete!(scene::Scene{E}, entity::E) where E = (delete!(scene.roots, entity); scene)
+function Base.push!(scene::Scene{E}, entity::E) where E
+    tf = transformof(entity)
+    if parentof(tf) !== nothing
+        deparent!(tf)
+    end
+    update_scene!(tf, scene)
+    push!(scene.roots, entity)
+    scene
+end
+function Base.delete!(scene::Scene{E}, entity::E) where E
+    tf = transformof(entity)
+    update_scene!(tf, nothing)
+    delete!(scene.roots, entity)
+    scene
+end
 
 
 # ===== Matrix Component Setters =====
@@ -229,7 +242,7 @@ function parent!(tf_child::Transform, tf_parent::Transform, child, parent)
         deparent!(tf_child, child)
         push!(tf_parent.children, child)
         tf_child.parent = parent
-        setscene!(tf_child, tf_parent.scene)
+        update_scene!(tf_child, tf_parent.scene)
     end
     return
 end
@@ -246,30 +259,18 @@ function deparent!(tf::Transform, child)
         
         tf.parent = nothing
         tf.dirty  = true
-        unsetscene!(tf)
+        update_scene!(tf)
     end
     
     return child
 end
 
-export setscene!
-setscene!(entity, scene::Scene) = (deparent!(entity); push!(scene, entity); setscene!(transformof(entity), scene); entity)
-setscene!(entity, ::Nothing) = unsetscene!(entity)
-function setscene!(tf::Transform, scene::Scene)
+function update_scene!(tf::Transform, scene::Union{Nothing, Scene})
     tf.dirty = true
     tf.scene = scene
     for child ∈ childrenof(tf)
-        setscene!(transformof(child), scene)
+        update_scene!(transformof(child), scene)
     end
-    return tf
-end
-
-export unsetscene!
-unsetscene!(entity) = (delete!(sceneof(entity), entity); unsetscene!(transformof(entity)); entity)
-function unsetscene!(tf::Transform)
-    tf.dirty = true
-    tf.scene = nothing
-    unsetscene!.(transformof.(childrenof(tf))) # transformof is mandatory as otherwise `unsetscene!(entity)` also calls `deparent!(entity)` by default.
     return tf
 end
 
