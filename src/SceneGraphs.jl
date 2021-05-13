@@ -57,7 +57,7 @@ abstract type Transform{D, E, T<:Real} end
 export SpriteTransform
 """`SpriteTransform` is a transform of 2D entities in a 3D scene."""
 mutable struct SpriteTransform{E, T<:Real} <: Transform{3, E, T}
-    scene::Optional{Scene{E, T}}
+    scene::Optional{AbstractScene{E, T}}
     parent::Optional{E}
     children::Vector{E}
     location::Vector3{T}
@@ -80,9 +80,9 @@ end
 
 # ===== Scene Alteration =====
 
-Base.:(∈)(entity::E, scene::Scene{E}) where E = entity ∈ scene.roots
-Base.haskey(scene::Scene{E}, entity::E) where E = entity ∈ scene
-function Base.push!(scene::Scene{E}, entity::E) where E
+Base.:(∈)(entity::E, scene::AbstractScene{E}) where E = entity ∈ scene.roots
+Base.haskey(scene::AbstractScene{E}, entity::E) where E = entity ∈ scene
+function Base.push!(scene::AbstractScene{E}, entity::E) where E
     tf = transformof(entity)
     if parentof(tf) !== nothing
         deparent!(tf)
@@ -91,7 +91,7 @@ function Base.push!(scene::Scene{E}, entity::E) where E
     push!(scene.roots, entity)
     scene
 end
-function Base.delete!(scene::Scene{E}, entity::E) where E
+function Base.delete!(scene::AbstractScene{E}, entity::E) where E
     tf = transformof(entity)
     update_scene!(tf, nothing)
     delete!(scene.roots, entity)
@@ -259,13 +259,13 @@ function deparent!(tf::Transform, child)
         
         tf.parent = nothing
         tf.dirty  = true
-        update_scene!(tf)
+        update_scene!(tf, nothing)
     end
     
     return child
 end
 
-function update_scene!(tf::Transform, scene::Union{Nothing, Scene})
+function update_scene!(tf::Transform, scene::Union{Nothing, AbstractScene})
     tf.dirty = true
     tf.scene = scene
     for child ∈ childrenof(tf)
