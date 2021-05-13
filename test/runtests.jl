@@ -9,10 +9,7 @@ using StaticArrays
 
 abstract type AbstractEntity end
 
-mutable struct TestScene <: Scene{AbstractEntity, Float64}
-    roots::Set{AbstractEntity}
-end
-TestScene() = TestScene(Set())
+const TestScene = Scene3D{AbstractEntity, Float64}
 
 EntityTransform = SpriteTransform{AbstractEntity, Float64}
 
@@ -50,9 +47,9 @@ end
 
 @testset "graph" begin
     let scene = TestScene(), entity1 = Entity(:first), entity2 = Entity(:second), entity3 = Entity(:third), entity4 = Entity(:fourth)
-        setscene!(entity1, scene)
-        setscene!(entity2, scene)
-        @test hasroot(scene, entity1) && hasroot(scene, entity2)
+        push!(scene, entity1)
+        push!(scene, entity2)
+        @test entity1 ∈ scene && entity2 ∈ scene
         
         @test sceneof(entity1) === scene && sceneof(entity2) === scene && sceneof(entity3) === nothing
         
@@ -77,7 +74,7 @@ end
 @testset "transformation" begin
     @testset "translate" begin
         let scene = TestScene(), parent = Entity(:parent), interim = Entity(:interim), child = Entity(:child)
-            setscene!(parent, scene)
+            push!(scene, parent)
             
             parent!(child, interim)
             parent!(interim, parent)
@@ -94,7 +91,7 @@ end
     
     @testset "rotate" begin
         let scene = TestScene(), parent = Entity(:parent), interim = Entity(:interim), child = Entity(:child)
-            setscene!(parent, scene)
+            push!(scene, parent)
             
             parent!(child, interim)
             parent!(interim, parent)
@@ -111,7 +108,7 @@ end
     
     @testset "scale" begin
         let scene = TestScene(), parent = Entity(:parent), interim = Entity(:interim), child = Entity(:child)
-            setscene!(parent, scene)
+            push!(scene, parent)
             
             parent!(child, interim)
             parent!(interim, parent)
@@ -128,7 +125,7 @@ end
     
     @testset "combined" begin
         let scene = TestScene(), parent = Entity(:parent), interim = Entity(:interim), child = Entity(:child)
-            setscene!(parent, scene)
+            push!(scene, parent)
             
             parent!(child, interim)
             parent!(interim, parent)
